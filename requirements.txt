@@ -1,0 +1,11 @@
+# Funkmodul (LoRa Sender/Receiver)
+pyserial>=3.5
+Pillow>=10.0.0
+picamera2>=0.3.12
+
+# Windradar (KY-053 / ADS1115)
+adafruit-blinka>=8.0.0
+adafruit-circuitpython-ads1x15>=2.4.0
+
+# Sensor (DHT22)
+adafruit-circuitpython-dht>=3.7.0
