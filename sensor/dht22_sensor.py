@@ -4,7 +4,9 @@ Sensor: SEN-DHT22 (AM2302)
 
 Verdrahtung (BCM-Nummerierung):
   - VCC (Pin 1)  → 3,3 V (Pin 1) oder 5 V (Pin 2) am Pi
-  - DATA (Pin 2) → GPIO 4 (physisch Pin 7) oder GPIO 7 (physisch Pin 26)
+  - DATA (Pin 2) → GPIO 17 (physisch Pin 11) – empfohlen, oft frei
+  - Alternativ: GPIO 4 (Pin 7), GPIO 27 (Pin 13), GPIO 22 (Pin 15)
+  - NICHT: GPIO 7 (Pin 26) – oft vom System reserviert
   - NC   (Pin 3) → nicht verbinden
   - GND  (Pin 4) → GND (Pin 6) am Pi
   Optional: 4,7–10 kΩ Pull-up zwischen DATA und VCC (bei langen Kabeln empfohlen)
@@ -31,8 +33,8 @@ import time
 import sys
 
 # GPIO-Pin für den DHT22 Datenpin (BCM-Nummer)
-# GPIO 4 = physisch Pin 7 | GPIO 7 = physisch Pin 26
-DHT_PIN = 7
+# GPIO 17 = Pin 11 (empfohlen) | GPIO 4 = Pin 7 | GPIO 7 = Pin 26 (oft reserviert!)
+DHT_PIN = 17
 
 # Messintervall in Sekunden (DHT22: mind. 2 Sekunden zwischen Messungen)
 MEASURE_INTERVAL = 2.5
@@ -63,6 +65,7 @@ def read_dht22():
         27: getattr(board, "D27", None),
         22: getattr(board, "D22", None),
     }
+    # GPIO 7 ist auf Pi 4 oft reserviert → "Unable to set line 7 to input"
     pin = pin_map.get(DHT_PIN)
     if pin is None:
         # Fallback: board.D4 ist bei den meisten Pis GPIO 4

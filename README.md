@@ -15,11 +15,12 @@
 | Raspberry Pi | DHT22 (AM2302) |
 |---|---|
 | Pin 1 (3,3V) oder Pin 2 (5V) | VCC (Pin 1) |
-| Pin 7 (GPIO 4) oder Pin 26 (GPIO 7) | DATA (Pin 2) |
+| **Pin 11 (GPIO 17)** – empfohlen | DATA (Pin 2) |
+| Pin 7 (GPIO 4), Pin 13 (GPIO 27) | Alternativen |
 | – | NC (Pin 3) – nicht verbinden |
 | Pin 6 (GND) | GND (Pin 4) |
 
-*BCM-Nummerierung: Pin 7 = GPIO 4, Pin 26 = GPIO 7. In `sensor/dht22_sensor.py` `DHT_PIN` anpassen (4 oder 7).*
+*GPIO 7 (Pin 26) vermeiden – oft vom System reserviert. In `sensor/dht22_sensor.py` `DHT_PIN` anpassen (Standard: 17).*
 
 Optional: 4,7–10 kΩ Pull-up zwischen DATA und VCC bei langen Kabeln.
 
