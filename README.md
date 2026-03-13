@@ -119,6 +119,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+**Wichtig:** Verwende **kein** `sudo` vor `pip` – sonst wird die System-Python-Umgebung genutzt und du erhältst den Fehler „externally-managed-environment“. In der aktivierten venv reicht `pip install` ohne sudo.
+
+Falls `python3 -m venv venv` fehlschlägt, zuerst installieren:
+```bash
+sudo apt install python3-full
+```
+
 ## Kurz-Checkliste
 
 - [ ] I2C in `raspi-config` aktiviert
