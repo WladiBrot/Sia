@@ -7,5 +7,6 @@ picamera2>=0.3.12
 adafruit-blinka>=8.0.0
 adafruit-circuitpython-ads1x15>=2.4.0
 
-# Sensor (DHT22)
+# Sensor (DHT22) – RPi.GPIO wird von adafruit-blinka für GPIO benötigt
+RPi.GPIO>=0.7.0
 adafruit-circuitpython-dht>=3.7.0

@@ -2,9 +2,9 @@
 DHT22 Temperatur- und Luftfeuchtigkeitssensor für Raspberry Pi 4 Model B
 Sensor: SEN-DHT22 (AM2302)
 
-Verdrahtung:
+Verdrahtung (BCM-Nummerierung):
   - VCC (Pin 1)  → 3,3 V (Pin 1) oder 5 V (Pin 2) am Pi
-  - DATA (Pin 2) → GPIO 4 (Pin 7) am Pi
+  - DATA (Pin 2) → GPIO 4 (physisch Pin 7) oder GPIO 7 (physisch Pin 26)
   - NC   (Pin 3) → nicht verbinden
   - GND  (Pin 4) → GND (Pin 6) am Pi
   Optional: 4,7–10 kΩ Pull-up zwischen DATA und VCC (bei langen Kabeln empfohlen)
@@ -30,8 +30,9 @@ Installation auf dem Raspberry Pi (wenn pip nur in einer Umgebung funktioniert):
 import time
 import sys
 
-# GPIO-Pin für den DHT22 Datenpin (BCM-Nummer; z.B. 4 = Pin 7 auf dem Header)
-DHT_PIN = 4
+# GPIO-Pin für den DHT22 Datenpin (BCM-Nummer)
+# GPIO 4 = physisch Pin 7 | GPIO 7 = physisch Pin 26
+DHT_PIN = 7
 
 # Messintervall in Sekunden (DHT22: mind. 2 Sekunden zwischen Messungen)
 MEASURE_INTERVAL = 2.5
@@ -54,9 +55,10 @@ def read_dht22():
         print("  pip install adafruit-circuitpython-dht adafruit-blinka")
         return None, None
 
-    # GPIO-Pin zuordnen (BCM 4 = board.D4)
+    # GPIO-Pin zuordnen (BCM-Nummer → board.Dx)
     pin_map = {
         4: getattr(board, "D4", None),
+        7: getattr(board, "D7", None),
         17: getattr(board, "D17", None),
         27: getattr(board, "D27", None),
         22: getattr(board, "D22", None),
