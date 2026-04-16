@@ -1,0 +1,10 @@
+# Empfaenger-Pi (LoRa-Empfang + Web-Dashboard)
+
+# LoRa (SX1268 HAT auf /dev/ttyS0)
+pyserial>=3.5
+
+# Bildverarbeitung (Empfang & Validierung)
+Pillow>=10.0.0
+
+# Web-Dashboard
+Flask>=3.0.0

@@ -1,0 +1,17 @@
+# Sender-Pi (DHT22 + Anemometer + LoRa + Kamera)
+
+# LoRa (SX1268 HAT auf /dev/ttyS0)
+pyserial>=3.5
+
+# Kamera (lora_image_sender.py)
+Pillow>=10.0.0
+picamera2>=0.3.12
+
+# Anemometer (KY-053 / ADS1115)
+adafruit-blinka>=8.0.0
+adafruit-circuitpython-ads1x15>=2.4.0
+# RPi.GPIO wird von adafruit-blinka auf dem Pi benötigt
+RPi.GPIO>=0.7.0
+
+# DHT22
+adafruit-circuitpython-dht>=3.7.0

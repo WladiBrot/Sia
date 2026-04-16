@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LoRa Dashboard – Wetter & Kamera</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #334155;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, #0b1220 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { margin: 0; font-size: 22px; letter-spacing: 0.5px; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.0);
+      transition: background .3s, box-shadow .3s;
+    }
+    .dot.live { background: var(--accent-2); box-shadow: 0 0 0 6px rgba(34,197,94,0.15); }
+    .dot.stale { background: var(--warn); }
+    main {
+      padding: 24px 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .card h2 {
+      margin: 0 0 14px 0;
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .metric {
+      background: var(--panel-2);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .metric .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .metric .value { font-size: 28px; font-weight: 700; margin-top: 6px; color: var(--accent); }
+    .metric .unit { font-size: 14px; color: var(--muted); margin-left: 4px; }
+
+    .image-wrap {
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 460 / 259;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .image-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    .meta {
+      display: flex; justify-content: space-between;
+      margin-top: 10px; font-size: 12px; color: var(--muted);
+    }
+
+    .full { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      padding: 8px 10px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+    tr:last-child td { border-bottom: none; }
+    .empty { color: var(--muted); font-style: italic; padding: 12px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LoRa Dashboard – Wetterstation</h1>
+    <div class="status">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">Verbinde…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Aktuelle Messwerte</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="label">Temperatur</div>
+          <div class="value"><span id="val-temp">–</span><span class="unit">°C</span></div>
+        </div>
+        <div class="metric">
+          <div class="label">Luftfeuchte</div>
+          <div class="value"><span id="val-hum">–</span><span class="unit">%</span></div>
+        </div>
+        <div class="metric">
+          <div class="label">Wind</div>
+          <div class="value"><span id="val-wind">–</span><span class="unit">km/h</span></div>
+        </div>
+      </div>
+      <div class="meta">
+        <span>Sensor-Zeit: <span id="sensor-ts">–</span></span>
+        <span>Empfangen: <span id="sensor-recv">–</span></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Letztes Kamerabild</h2>
+      <div class="image-wrap" id="img-wrap">
+        <span id="img-placeholder">Noch kein Bild empfangen.</span>
+        <img id="cam-img" alt="Letztes Kamerabild" style="display:none" />
+      </div>
+      <div class="meta">
+        <span>Aktualisiert: <span id="img-updated">–</span></span>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>Verlauf (letzte Messungen)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Zeit</th>
+            <th>Temperatur</th>
+            <th>Luftfeuchte</th>
+            <th>Wind</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="4" class="empty">Noch keine Daten…</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const POLL_MS = 3000;
+
+    let lastImageMtime = 0;
+    let lastRecvTs = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(state, text) {
+      const dot = $("status-dot");
+      dot.classList.remove("live", "stale");
+      if (state) dot.classList.add(state);
+      $("status-text").textContent = text;
+    }
+
+    function fmt(n, digits = 1) {
+      if (n === undefined || n === null || isNaN(n)) return "–";
+      return Number(n).toFixed(digits).replace(/\.0$/, "");
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "–";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString("de-DE");
+      } catch (e) { return iso; }
+    }
+
+    async function fetchLatest() {
+      try {
+        const res = await fetch("/api/latest", { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        const s = data.sensor || {};
+        $("val-temp").textContent = fmt(s.temp_c);
+        $("val-hum").textContent  = fmt(s.humidity);
+        $("val-wind").textContent = fmt(s.wind_kmh);
+        $("sensor-ts").textContent = fmtTime(s.timestamp);
+        $("sensor-recv").textContent = fmtTime(s.received_at);
+
+        // Bild nur neu laden, wenn mtime sich geändert hat
+        const img = data.image;
+        if (img && img.mtime && img.mtime !== lastImageMtime) {
+          lastImageMtime = img.mtime;
+          const el = $("cam-img");
+          el.onload = () => {
+            el.style.display = "block";
+            $("img-placeholder").style.display = "none";
+          };
+          el.src = img.url;
+          $("img-updated").textContent = fmtTime(img.updated_at);
+        }
+
+        // Live-Indikator: grün, wenn Daten < 90s alt sind
+        const now = Date.now();
+        let freshMs = Infinity;
+        if (s.received_at) {
+          const t = new Date(s.received_at).getTime();
+          if (!isNaN(t)) freshMs = now - t;
+        }
+        if (freshMs < 90_000) {
+          setStatus("live", "Live – Daten aktuell");
+        } else if (freshMs < 10 * 60_000) {
+          setStatus("stale", "Keine frischen Daten");
+        } else {
+          setStatus("stale", "Warte auf Daten…");
+        }
+
+        if (s.received_at !== lastRecvTs) {
+          lastRecvTs = s.received_at;
+          fetchHistory();
+        }
+      } catch (e) {
+        setStatus("stale", "Server nicht erreichbar");
+      }
+    }
+
+    async function fetchHistory() {
+      try {
+        const res = await fetch("/api/history", { cache: "no-store" });
+        if (!res.ok) return;
+        const list = await res.json();
+        const body = $("history-body");
+        if (!Array.isArray(list) || list.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" class="empty">Noch keine Daten…</td></tr>';
+          return;
+        }
+        const rows = list.slice().reverse().slice(0, 30).map((e) => {
+          return `<tr>
+            <td>${fmtTime(e.received_at || e.timestamp)}</td>
+            <td>${fmt(e.temp_c)} °C</td>
+            <td>${fmt(e.humidity)} %</td>
+            <td>${fmt(e.wind_kmh)} km/h</td>
+          </tr>`;
+        }).join("");
+        body.innerHTML = rows;
+      } catch (e) { /* ignore */ }
+    }
+
+    fetchLatest();
+    fetchHistory();
+    setInterval(fetchLatest, POLL_MS);
+  </script>
+</body>
+</html>

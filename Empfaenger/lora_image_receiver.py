@@ -7,6 +7,7 @@ Empfängt außerdem SENSOR_DATA (DHT22 + Anemometer) vom lora_sensor_sender.
 import serial
 import time
 import json
+import shutil
 from PIL import Image
 import os
 import base64
@@ -193,6 +194,47 @@ def send_ack_message(lora_serial):
 # Verzeichnis für Sensordaten-TXT-Dateien (gleicher Ordner wie Skript)
 SENSOR_DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 SENSOR_DATA_FILENAME = "sensor_data.txt"
+# Zentrale Dateien für das Web-Dashboard (werden vom Receiver kontinuierlich überschrieben)
+LATEST_SENSOR_JSON = os.path.join(SENSOR_DATA_DIR, "latest_sensor.json")
+LATEST_IMAGE_FILE = os.path.join(SENSOR_DATA_DIR, "latest_image.jpg")
+HISTORY_JSON = os.path.join(SENSOR_DATA_DIR, "sensor_history.json")
+HISTORY_MAX_ENTRIES = 200
+
+
+def update_sensor_history(data):
+    """Hängt einen Sensordatensatz an sensor_history.json an (max. HISTORY_MAX_ENTRIES Einträge)."""
+    history = []
+    if os.path.exists(HISTORY_JSON):
+        try:
+            with open(HISTORY_JSON, "r", encoding="utf-8") as f:
+                history = json.load(f)
+                if not isinstance(history, list):
+                    history = []
+        except (json.JSONDecodeError, OSError):
+            history = []
+
+    entry = dict(data)
+    entry["received_at"] = datetime.now().isoformat()
+    history.append(entry)
+    if len(history) > HISTORY_MAX_ENTRIES:
+        history = history[-HISTORY_MAX_ENTRIES:]
+
+    try:
+        with open(HISTORY_JSON, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        print(f"⚠ Konnte History nicht schreiben: {e}")
+
+
+def write_latest_sensor_json(data):
+    """Schreibt den letzten Sensordatensatz in latest_sensor.json (für Web-Dashboard)."""
+    payload = dict(data)
+    payload["received_at"] = datetime.now().isoformat()
+    try:
+        with open(LATEST_SENSOR_JSON, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        print(f"⚠ Konnte latest_sensor.json nicht schreiben: {e}")
 
 
 def process_sensor_data(packet):
@@ -217,12 +259,12 @@ def process_sensor_data(packet):
 
         print(f"\n✓ Sensordaten empfangen: {' | '.join(parts)}\n")
 
-        # In TXT-Datei schreiben
-        filepath = os.path.join(SENSOR_DATA_DIR, SENSOR_DATA_FILENAME)
+        # In TXT-Datei mit Zeitstempel schreiben (direkt zum Zieldateinamen)
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         new_filename = f"sensor_data_{timestamp_str}.txt"
+        new_filepath = os.path.join(SENSOR_DATA_DIR, new_filename)
 
-        with open(filepath, "w", encoding="utf-8") as f:
+        with open(new_filepath, "w", encoding="utf-8") as f:
             f.write(f"Sensordaten vom {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("-" * 40 + "\n")
             if "temp_c" in data:
@@ -233,10 +275,11 @@ def process_sensor_data(packet):
                 f.write(f"Wind:           {data['wind_kmh']} km/h\n")
             f.write(f"Zeitstempel:    {ts}\n")
 
-        # Datei mit Zeitstempel umbenennen
-        new_filepath = os.path.join(SENSOR_DATA_DIR, new_filename)
-        os.rename(filepath, new_filepath)
         print(f"✓ Gespeichert: {new_filename}\n")
+
+        # Zusätzlich: Dateien für das Web-Dashboard aktualisieren
+        write_latest_sensor_json(data)
+        update_sensor_history(data)
 
         return True
     except (IndexError, json.JSONDecodeError, UnicodeDecodeError) as e:
@@ -322,7 +365,14 @@ def create_image_from_chunks():
         except Exception as e:
             print(f"⚠ Bild gespeichert, aber Validierung fehlgeschlagen: {e}")
             print(f"  Möglicherweise ist das Bild beschädigt.")
-        
+
+        # Zusätzlich: Kopie für das Web-Dashboard ablegen (wird ständig überschrieben)
+        try:
+            shutil.copyfile(output_filename, LATEST_IMAGE_FILE)
+            print(f"✓ Dashboard-Bild aktualisiert: {LATEST_IMAGE_FILE}")
+        except OSError as e:
+            print(f"⚠ Konnte latest_image.jpg nicht aktualisieren: {e}")
+
         return True
         
     except Exception as e:
@@ -385,6 +435,7 @@ def reconnect_serial():
 
 def main():
     """Hauptfunktion: Empfängt kontinuierlich Bildpakete."""
+    global waiting_for_retransmission
     print("\n" + "="*50)
     print("LoRa Bild-Empfänger")
     print("="*50 + "\n")

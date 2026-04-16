@@ -1,12 +1,26 @@
-# Funkmodul (LoRa Sender/Receiver)
+# Gesamt-Requirements (enthält alles, was Sender ODER Empfaenger braucht)
+# Für einen einzelnen Pi reicht die spezifische requirements.txt
+# im jeweiligen Ordner:
+#   Sender/requirements.txt
+#   Empfaenger/requirements.txt
+
+# LoRa (beide Pis)
 pyserial>=3.5
+
+# Bildverarbeitung
 Pillow>=10.0.0
+
+# Kamera (nur Sender)
 picamera2>=0.3.12
 
-# Windradar (KY-053 / ADS1115)
+# Anemometer (nur Sender – KY-053 / ADS1115)
 adafruit-blinka>=8.0.0
 adafruit-circuitpython-ads1x15>=2.4.0
-
-# Sensor (DHT22) – RPi.GPIO wird von adafruit-blinka für GPIO benötigt
+# RPi.GPIO wird von adafruit-blinka auf dem Pi benötigt
 RPi.GPIO>=0.7.0
+
+# DHT22 (nur Sender)
 adafruit-circuitpython-dht>=3.7.0
+
+# Web-Dashboard (nur Empfaenger)
+Flask>=3.0.0

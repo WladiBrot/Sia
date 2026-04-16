@@ -16,7 +16,7 @@ LORA_PORT = '/dev/ttyS0'
 LORA_BAUDRATE = 9600
 # Hinweis: Da wir jetzt Base64 (ASCII, zeilenbasiert) nutzen, wird jedes Paket ~33% größer.
 # Daher MAX_PAYLOAD_SIZE etwas kleiner wählen, damit das LoRa-Paket nicht zu groß wird.
-MAX_PAYLOAD_SIZE = 200  # Nutzdaten vor Base64; Base64 wird größer. Bei Bedarf weiter senken (120).
+MAX_PAYLOAD_SIZE = 500  # Nutzdaten vor Base64; Base64 wird größer. Bei Bedarf weiter senken (120).
 CHUNK_DELAY = 2  # Wartezeit zwischen Paketen in Sekunden (Duty Cycle)
 START_DELAY = 1  # Wartezeit nach START-Nachricht
 RESPONSE_TIMEOUT = 30.0  # Timeout für Antworten vom Receiver (Sekunden)
