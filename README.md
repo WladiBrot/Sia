@@ -63,9 +63,11 @@ passenden Ordner zu haben.
 
 ### Sender-Pi
 
+Für **`lora_image_sender.py`** (Picamera2) zuerst `sudo apt install python3-picamera2` (zieht libcamera nach) und das venv mit `--system-site-packages` anlegen (siehe [Sender/README.md](Sender/README.md)).
+
 ```bash
 cd ~/sia/Sender
-python3 -m venv venv && source venv/bin/activate
+python3 -m venv venv --system-site-packages && source venv/bin/activate
 pip install -r requirements.txt
 python lora_config.py           # einmalig, gleiche Parameter wie Empfaenger
 
@@ -105,3 +107,10 @@ Details zur Verdrahtung findet ihr in den jeweiligen Ordner-READMEs.
 | Sensordaten | `Sender/lora_sensor_sender.py` → `SEND_INTERVAL` | 30 s |
 | Bilder | `Sender/lora_image_sender.py` → `IMAGE_SEND_INTERVAL_MINUTES` | 10 min |
 | Dashboard-Polling | `Empfaenger/templates/index.html` → `POLL_MS` | 3 s |
+
+
+# Sensordaten-Sender bei Boot starten
+@reboot /home/pi/sia/Sender/venv/bin/python /home/pi/sia/Sender/lora_sensor_sender.py >> /home/pi/sia/Sender/sensor.log 2>&1
+
+# Kamera-Sender bei Boot starten
+@reboot /home/pi/sia/Sender/venv/bin/python /home/pi/sia/Sender/lora_image_sender.py >> /home/pi/sia/Sender/image.log 2>&1

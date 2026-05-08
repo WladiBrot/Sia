@@ -5,6 +5,9 @@ pyserial>=3.5
 
 # Kamera (lora_image_sender.py)
 Pillow>=10.0.0
+# Picamera2: zusätzlich auf dem Pi immer per apt installieren
+# (liefert passende libcamera-Bindings): sudo apt install python3-picamera2
+# Venv mit --system-site-packages, siehe Sender/README.md
 picamera2>=0.3.12
 
 # Anemometer (KY-053 / ADS1115)

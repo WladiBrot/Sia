@@ -1,101 +1,79 @@
 """
-Windgeschwindigkeitsmessung – Python-Port des Arduino-Sketches nurwindsensor.ino
-Für Raspberry Pi mit KY-053 ADC (ADS1115), Anemometer an A0.
-
-Verdrahtung:
-  Raspberry Pi    →   KY-053
-  Pin 1 (3V3)     →   VDD
-  Pin 6 (GND)     →   GND
-  Pin 3 (SDA)     →   SDA
-  Pin 5 (SCL)     →   SCL
-  Anemometer      →   A0
+Standalone-Testskript für das Eltako-WS-Anemometer am KY-053 (ADS1115).
+Diese Version nutzt eine extrem robuste Import-Methode.
 """
 
 import time
+import board
+import busio
+import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.analog_in import AnalogIn
 
-# Konstanten (wie Arduino)
-SCHWELLENWERT = 800
+# Falls ADS.P0 fehlschlägt, definieren wir die Konstante manuell.
+# Bei der Adafruit Bibliothek ist P0 intern einfach der Index 0.
+PIN_A0 = 0 
+
+# Konfiguration
+SCHWELLE_HIGH = 20000   
+SCHWELLE_LOW = 8000     
 BERECHNUNGS_KONSTANTE = 1.326
+TIMEOUT_MS = 3000
 
-# Variablen
-geschwindigkeit = 0.0
-timea = 0.0
-timeb = 0.0
-timec = 0.0
-a = 0
-b = 0
-
-adc_channel = None
+def now_ms():
+    return time.perf_counter() * 1000.0
 
 try:
-    import board
-    import busio
-    import adafruit_ads1x15.ads1115 as ADS
-    from adafruit_ads1x15.analog_in import AnalogIn
-    ADC_AVAILABLE = True
-except ImportError:
-    ADC_AVAILABLE = False
-    import random
+    # Initialisierung I2C
+    i2c = busio.I2C(board.SCL, board.SDA)
+    
+    # Initialisierung ADS1115
+    ads = ADS.ADS1115(i2c, address=0x48)
+    ads.gain = 1
+    ads.data_rate = 860
 
+    # Hier nutzen wir direkt die 0 für den ersten Kanal (A0)
+    # Das umgeht alle "AttributeError" Probleme mit P0
+    adc = AnalogIn(ads, PIN_A0)
 
-def setup():
-    """Initialisiert den ADC (KY-053 / ADS1115)."""
-    global timeb, timec, adc_channel
-
-    if ADC_AVAILABLE:
-        try:
-            i2c = busio.I2C(board.SCL, board.SDA)
-            ads = ADS.ADS1115(i2c, address=0x48)
-            adc_channel = AnalogIn(ads, ADS.P0)
-            print("KY-053 ADC initialisiert (Kanal A0)")
-        except Exception as e:
-            print(f"ADC-Fehler: {e}. Verwende Simulation.")
-            adc_channel = None
-    else:
-        print("Bibliotheken fehlen. Verwende Simulation.")
-        adc_channel = None
-
-    timeb = time.perf_counter() * 1000
-    timec = timeb
-
-
-def analog_read():
-    """Liest Analogwert 0–1023 (wie Arduino analogRead)."""
-    if adc_channel:
-        raw = adc_channel.value
-        return int((raw / 65535.0) * 1023)
-    return random.randint(0, 1023)
-
-
-def loop():
-    """Hauptlogik – entspricht Arduino loop()."""
-    global a, b, timea, timeb, timec, geschwindigkeit
-
-    a = b
-    b = analog_read()
-
-    if (b - a) > SCHWELLENWERT:
-        timea = timeb
-        timeb = time.perf_counter() * 1000
-        diff = timeb - timea
-        if diff > 0:
-            geschwindigkeit = round((1000 / diff) * BERECHNUNGS_KONSTANTE)
-        else:
-            geschwindigkeit = 0.0
-        print(f"Geschwindigkeit: {geschwindigkeit} km/h")
-
-    timec = time.perf_counter() * 1000
-    if (timec - timeb) > 1000:
-        print(0)
-
-    time.sleep(0.005)
-
-
-if __name__ == "__main__":
-    setup()
+    print("KY-053 ADC bereit (A0, Gain=1, 860 SPS)")
     print("Windgeschwindigkeit (Strg+C zum Beenden)\n")
-    try:
-        while True:
-            loop()
-    except KeyboardInterrupt:
-        print("\nBeendet.")
+
+    state_high = True
+    last_edge_ms = now_ms()
+    geschwindigkeit = 0.0
+    last_printed = None
+    last_print_ms = 0.0
+
+    while True:
+        raw = adc.value
+
+        # Flankenerkennung
+        if state_high and raw < SCHWELLE_LOW:
+            t = now_ms()
+            diff = t - last_edge_ms
+            last_edge_ms = t
+            state_high = False
+            if diff > 0:
+                geschwindigkeit = round((1000.0 / diff) * BERECHNUNGS_KONSTANTE, 1)
+
+        elif not state_high and raw > SCHWELLE_HIGH:
+            state_high = True
+
+        # Timeout
+        if (now_ms() - last_edge_ms) > TIMEOUT_MS:
+            geschwindigkeit = 0.0
+
+        # Ausgabe
+        t_now = now_ms()
+        if geschwindigkeit != last_printed or (t_now - last_print_ms) > 1000:
+            print(f"Geschwindigkeit: {geschwindigkeit} km/h (Rohwert: {raw})")
+            last_printed = geschwindigkeit
+            last_print_ms = t_now
+
+        time.sleep(0.002)
+
+except Exception as e:
+    print(f"Fehler beim Starten: {e}")
+
+except KeyboardInterrupt:
+    print("\nTest beendet.")

@@ -1,0 +1,10 @@
+{
+  "title": "Wetterstation",
+  "subtitle": "Messwerte vom Feld – fest eingetragen auf diesem Dashboard",
+  "metrics": {
+    "temp": "Temperatur",
+    "humidity": "Luftfeuchte",
+    "wind": "Wind"
+  },
+  "witty_line": "Das Wetter ist wie die Mathe-Klausur: erst dachten wir, es wird leicht – dann kam der Wind."
+}

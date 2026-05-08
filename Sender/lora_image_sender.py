@@ -3,9 +3,9 @@ LoRa Bild-Sender für Raspberry Pi mit SX1268 HAT
 Nimmt ein Foto mit der Kamera auf und sendet es über LoRa an einen Empfänger
 """
 
+import sys
 import time
 import serial
-from picamera2 import Picamera2
 from PIL import Image
 import io
 import os
@@ -28,6 +28,34 @@ JPEG_QUALITY = 100  # Qualität (1-100, niedriger = kleinere Datei)
 
 # Intervall: Nach wie vielen Minuten das nächste Bild gesendet wird
 IMAGE_SEND_INTERVAL_MINUTES = 10
+
+
+def _import_picamera2():
+    """Picamera2 braucht auf dem Pi die libcamera-Stack-Pakete von apt (nicht nur pip)."""
+    try:
+        from picamera2 import Picamera2
+
+        return Picamera2
+    except Exception as e:
+        print("\n✗ Kamera-Module fehlen oder lassen sich nicht laden.")
+        print(f"  Technische Meldung: {e!r}\n")
+        print("Auf Raspberry Pi OS gehören Picamera2 und libcamera zu den Systempaketen.")
+        print("So richtest du es ein:\n")
+        print("  sudo apt update")
+        print("  sudo apt install -y python3-picamera2")
+        print()
+        print("(Unter Raspberry Pi OS zieht das Paket die libcamera-Python-Bindings mit.)\n")
+        print("Wenn du ein virtuelles Environment nutzt, muss es die System-Site-Packages sehen,")
+        print("sonst findet Python die apt-Module nicht. Venv neu anlegen z. B.:\n")
+        print("  cd ~/sia/Sender")
+        print("  deactivate   # falls aktiv")
+        print("  rm -rf venv")
+        print("  python3 -m venv venv --system-site-packages")
+        print("  source venv/bin/activate")
+        print("  pip install -r requirements.txt\n")
+        print("Schnelltest (soll ohne Fehler durchlaufen):")
+        print("  python3 -c \"import libcamera; from picamera2 import Picamera2\"\n")
+        sys.exit(1)
 
 
 def setup_lora_serial():
@@ -268,6 +296,8 @@ def send_data_via_lora(lora_serial, data):
 
 def main():
     """Hauptfunktion: Foto aufnehmen, senden, warten, wiederholen."""
+    Picamera2 = _import_picamera2()
+
     print("\n" + "="*50)
     print("LoRa Bild-Sender")
     print(f"Intervall: alle {IMAGE_SEND_INTERVAL_MINUTES} Minuten")

@@ -22,6 +22,9 @@ void loop() {
     digitalWrite(7, LOW);
     Serial.println("Relais AUS");
     delay(2000);
-    Relais=0;
+    if(Spannung<=4.5){
+      Relais=0;
+    }
+    
   }
 }

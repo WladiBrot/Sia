@@ -4,7 +4,8 @@ Web-Dashboard für empfangene LoRa-Daten.
 Zeigt in Echtzeit im Browser an:
 - Temperatur, Luftfeuchtigkeit und Windgeschwindigkeit (aus latest_sensor.json)
 - Das zuletzt empfangene Kamerabild (latest_image.jpg)
-- Verlauf (letzte ~200 Messwerte aus sensor_history.json)
+
+Texte, Titel und ein Spruch kommen aus dashboard_config.json (anpassbar).
 
 Die Seite pollt alle paar Sekunden neue Daten vom Server und aktualisiert
 sich automatisch, sobald der Receiver neue Werte / ein neues Bild empfängt.
@@ -25,6 +26,18 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LATEST_SENSOR_JSON = os.path.join(BASE_DIR, "latest_sensor.json")
 LATEST_IMAGE_FILE = os.path.join(BASE_DIR, "latest_image.jpg")
 HISTORY_JSON = os.path.join(BASE_DIR, "sensor_history.json")
+DASHBOARD_CONFIG_JSON = os.path.join(BASE_DIR, "dashboard_config.json")
+
+DEFAULT_DASHBOARD_CONFIG = {
+    "title": "Wetterstation",
+    "subtitle": "",
+    "metrics": {
+        "temp": "Temperatur",
+        "humidity": "Luftfeuchte",
+        "wind": "Wind",
+    },
+    "witty_line": "",
+}
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
 
@@ -39,9 +52,25 @@ def _read_json(path):
         return None
 
 
+def _dashboard_config():
+    cfg = json.loads(json.dumps(DEFAULT_DASHBOARD_CONFIG))
+    raw = _read_json(DASHBOARD_CONFIG_JSON)
+    if not isinstance(raw, dict):
+        return cfg
+    for key in ("title", "subtitle", "witty_line"):
+        if key in raw and isinstance(raw[key], str):
+            cfg[key] = raw[key]
+    m = raw.get("metrics")
+    if isinstance(m, dict):
+        for k in ("temp", "humidity", "wind"):
+            if k in m and isinstance(m[k], str):
+                cfg["metrics"][k] = m[k]
+    return cfg
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", config=_dashboard_config())
 
 
 @app.route("/api/latest")
@@ -80,7 +109,7 @@ def latest_image():
 
 if __name__ == "__main__":
     print("\n" + "=" * 50)
-    print("LoRa Web-Dashboard")
+    print("Wetterstation")
     print("=" * 50)
     print(f"Datenquelle: {BASE_DIR}")
     print("Öffne im Browser:  http://<Pi-IP>:5000")
