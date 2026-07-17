@@ -13,6 +13,13 @@ import os
 import base64
 from datetime import datetime
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # --- LoRa-Konstanten ---
 LORA_PORT = '/dev/ttyS0'
 LORA_BAUDRATE = 9600
@@ -42,15 +49,15 @@ def setup_lora_serial():
             timeout=1,
             write_timeout=5
         )
-        print(f"✓ LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
+        print(f"[OK] LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
         time.sleep(0.5)  # Kurze Initialisierungszeit
         return lora_serial
     except serial.SerialException as e:
-        print(f"✗ FEHLER: Kann serielle Schnittstelle nicht öffnen: {e}")
+        print(f"[FEHLER] Kann serielle Schnittstelle nicht öffnen: {e}")
         print(f"  Stelle sicher, dass {LORA_PORT} existiert und berechtigt ist.")
         return None
     except Exception as e:
-        print(f"✗ Unerwarteter Fehler beim Öffnen der seriellen Schnittstelle: {e}")
+        print(f"[FEHLER] Unerwarteter Fehler beim Öffnen der seriellen Schnittstelle: {e}")
         return None
 
 
@@ -87,7 +94,7 @@ def process_start_message(packet):
                 estimated_str = f"ca. {estimated_seconds} Sek."
 
             print(f"\n{'='*50}")
-            print(f"✓ START-Nachricht empfangen:")
+            print(f"[OK] START-Nachricht empfangen:")
             print(f"  - Erwartete Pakete: {total_chunks}")
             print(f"  - Erwartete Gesamtgröße: {image_size_expected} Bytes")
             print(f"  - Geschätzte Dauer bis Bild komplett: {estimated_str}")
@@ -95,10 +102,10 @@ def process_start_message(packet):
 
             return True
         else:
-            print(f"✗ Ungültige START-Nachricht: {packet}")
+            print(f"[FEHLER] Ungültige START-Nachricht: {packet}")
             return False
     except (IndexError, ValueError) as e:
-        print(f"✗ Fehler beim Parsen der START-Nachricht: {e}")
+        print(f"[FEHLER] Fehler beim Parsen der START-Nachricht: {e}")
         print(f"  Paket: {packet}")
         return False
 
@@ -113,7 +120,7 @@ def process_chunk_message(packet):
         second_colon = packet.find(b":", first_colon + 1)
         
         if first_colon == -1 or second_colon == -1:
-            print(f"✗ Ungültiges CHUNK-Format: Konnte Doppelpunkte nicht finden")
+            print(f"[FEHLER] Ungültiges CHUNK-Format: Konnte Doppelpunkte nicht finden")
             return False
         
         # Extrahiere Metadaten und Daten (Daten sind Base64-kodiert und enden mit \n)
@@ -130,7 +137,7 @@ def process_chunk_message(packet):
         try:
             decoded_bytes = base64.b64decode(data_chunk, validate=True)
         except Exception as e:
-            print(f"✗ Base64-Dekodierung fehlgeschlagen für Paket {index}: {e}")
+            print(f"[FEHLER] Base64-Dekodierung fehlgeschlagen für Paket {index}: {e}")
             return False
 
         # Speichere das dekodierte Paket (Rohdaten)
@@ -141,12 +148,12 @@ def process_chunk_message(packet):
         # Fortschrittsanzeige
         progress = len(received_chunks)
         percentage = (progress / total) * 100 if total > 0 else 0
-        print(f"✓ Empfangen: Paket {progress}/{total} ({percentage:.1f}%) - Rohdaten {len(decoded_bytes)} Bytes")
+        print(f"[OK] Empfangen: Paket {progress}/{total} ({percentage:.1f}%) - Rohdaten {len(decoded_bytes)} Bytes")
         
         return True
         
     except (ValueError, IndexError) as e:
-        print(f"✗ Fehler beim Parsen des CHUNK-Pakets: {e}")
+        print(f"[FEHLER] Fehler beim Parsen des CHUNK-Pakets: {e}")
         print(f"  Paket (erste 100 Bytes): {packet[:100]}")
         return False
 
@@ -170,11 +177,11 @@ def send_missing_packets_request(lora_serial, missing_indices):
         missing_message = f"MISSING:{missing_str}:".encode('utf-8') + b"\n"
         lora_serial.write(missing_message)
         lora_serial.flush()
-        print(f"✓ MISSING-Nachricht gesendet: {len(missing_indices)} fehlende Pakete")
+        print(f"[OK] MISSING-Nachricht gesendet: {len(missing_indices)} fehlende Pakete")
         print(f"  Fehlende Indizes: {missing_indices}")
         return True
     except Exception as e:
-        print(f"✗ Fehler beim Senden der MISSING-Nachricht: {e}")
+        print(f"[FEHLER] Fehler beim Senden der MISSING-Nachricht: {e}")
         return False
 
 
@@ -184,10 +191,10 @@ def send_ack_message(lora_serial):
         ack_message = b"ACK:\n"
         lora_serial.write(ack_message)
         lora_serial.flush()
-        print(f"✓ ACK-Nachricht gesendet (alle Pakete empfangen)")
+        print(f"[OK] ACK-Nachricht gesendet (alle Pakete empfangen)")
         return True
     except Exception as e:
-        print(f"✗ Fehler beim Senden der ACK-Nachricht: {e}")
+        print(f"[FEHLER] Fehler beim Senden der ACK-Nachricht: {e}")
         return False
 
 
@@ -223,7 +230,7 @@ def update_sensor_history(data):
         with open(HISTORY_JSON, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
     except OSError as e:
-        print(f"⚠ Konnte History nicht schreiben: {e}")
+        print(f"[WARNUNG] Konnte History nicht schreiben: {e}")
 
 
 def write_latest_sensor_json(data):
@@ -234,7 +241,7 @@ def write_latest_sensor_json(data):
         with open(LATEST_SENSOR_JSON, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
     except OSError as e:
-        print(f"⚠ Konnte latest_sensor.json nicht schreiben: {e}")
+        print(f"[WARNUNG] Konnte latest_sensor.json nicht schreiben: {e}")
 
 
 def process_sensor_data(packet):
@@ -257,7 +264,7 @@ def process_sensor_data(packet):
         if ts:
             parts.append(f"({ts})")
 
-        print(f"\n✓ Sensordaten empfangen: {' | '.join(parts)}\n")
+        print(f"\n[OK] Sensordaten empfangen: {' | '.join(parts)}\n")
 
         # In TXT-Datei mit Zeitstempel schreiben (direkt zum Zieldateinamen)
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -275,7 +282,7 @@ def process_sensor_data(packet):
                 f.write(f"Wind:           {data['wind_kmh']} km/h\n")
             f.write(f"Zeitstempel:    {ts}\n")
 
-        print(f"✓ Gespeichert: {new_filename}\n")
+        print(f"[OK] Gespeichert: {new_filename}\n")
 
         # Zusätzlich: Dateien für das Web-Dashboard aktualisieren
         write_latest_sensor_json(data)
@@ -283,10 +290,10 @@ def process_sensor_data(packet):
 
         return True
     except (IndexError, json.JSONDecodeError, UnicodeDecodeError) as e:
-        print(f"✗ Fehler beim Parsen der SENSOR_DATA: {e}")
+        print(f"[FEHLER] Fehler beim Parsen der SENSOR_DATA: {e}")
         return False
     except OSError as e:
-        print(f"✗ Fehler beim Schreiben der Sensordaten: {e}")
+        print(f"[FEHLER] Fehler beim Schreiben der Sensordaten: {e}")
         return False
 
 
@@ -294,25 +301,25 @@ def process_end_message(lora_serial):
     """Verarbeitet eine ENDE-Nachricht, prüft fehlende Pakete und sendet entsprechende Antwort."""
     global received_chunks, total_chunks, image_size_expected, waiting_for_retransmission
     
-    print(f"\n✓ ENDE-Nachricht empfangen")
+    print(f"\n[OK] ENDE-Nachricht empfangen")
     print(f"  Empfangene Pakete: {len(received_chunks)}/{total_chunks}")
     
     # Prüfen, ob alle Pakete empfangen wurden
     if total_chunks is None:
-        print("✗ Keine START-Nachricht empfangen!")
+        print("[FEHLER] Keine START-Nachricht empfangen!")
         return False
     
     missing = check_missing_packets()
     
     if missing:
         # Es fehlen noch Pakete - sende MISSING-Nachricht
-        print(f"✗ Fehlende Pakete: {missing}")
+        print(f"[FEHLER] Fehlende Pakete: {missing}")
         send_missing_packets_request(lora_serial, missing)
         waiting_for_retransmission = True  # Wir warten jetzt auf Retransmission
         return False  # Noch nicht fertig
     else:
         # Alle Pakete sind da - sende ACK und erstelle Bild
-        print(f"✓ Alle Pakete empfangen!")
+        print(f"[OK] Alle Pakete empfangen!")
         waiting_for_retransmission = False
         send_ack_message(lora_serial)
         return create_image_from_chunks()
@@ -331,16 +338,16 @@ def create_image_from_chunks():
             if i in received_chunks:
                 sorted_chunks.append(received_chunks[i])
             else:
-                print(f"✗ FEHLER: Paket {i} fehlt trotz Prüfung!")
+                print(f"[FEHLER] Paket {i} fehlt trotz Prüfung!")
                 return False
         
         full_image_data = b"".join(sorted_chunks)
         
-        print(f"✓ Zusammengesetzt: {len(full_image_data)} Bytes (erwartet: {image_size_expected})")
+        print(f"[OK] Zusammengesetzt: {len(full_image_data)} Bytes (erwartet: {image_size_expected})")
         
         # Validierung
         if len(full_image_data) != image_size_expected:
-            print(f"⚠ Größenabweichung: {abs(len(full_image_data) - image_size_expected)} Bytes")
+            print(f"[WARNUNG] Größenabweichung: {abs(len(full_image_data) - image_size_expected)} Bytes")
         
         # Bild speichern mit Zeitstempel
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -352,7 +359,7 @@ def create_image_from_chunks():
         with open(output_filename, "wb") as f:
             f.write(full_image_data)
         
-        print(f"✓ Bild erfolgreich gespeichert:")
+        print(f"[OK] Bild erfolgreich gespeichert:")
         print(f"  Dateiname: {output_filename}")
         print(f"  Vollständiger Pfad: {output_path}")
         print(f"  Größe: {len(full_image_data)} Bytes")
@@ -360,23 +367,23 @@ def create_image_from_chunks():
         # Bild validieren und anzeigen
         try:
             img = Image.open(output_filename)
-            print(f"✓ Bild validiert: Größe {img.size}, Format: {img.format}")
+            print(f"[OK] Bild validiert: Größe {img.size}, Format: {img.format}")
             # img.show()  # Auskommentieren, wenn X11 verfügbar ist
         except Exception as e:
-            print(f"⚠ Bild gespeichert, aber Validierung fehlgeschlagen: {e}")
+            print(f"[WARNUNG] Bild gespeichert, aber Validierung fehlgeschlagen: {e}")
             print(f"  Möglicherweise ist das Bild beschädigt.")
 
         # Zusätzlich: Kopie für das Web-Dashboard ablegen (wird ständig überschrieben)
         try:
             shutil.copyfile(output_filename, LATEST_IMAGE_FILE)
-            print(f"✓ Dashboard-Bild aktualisiert: {LATEST_IMAGE_FILE}")
+            print(f"[OK] Dashboard-Bild aktualisiert: {LATEST_IMAGE_FILE}")
         except OSError as e:
-            print(f"⚠ Konnte latest_image.jpg nicht aktualisieren: {e}")
+            print(f"[WARNUNG] Konnte latest_image.jpg nicht aktualisieren: {e}")
 
         return True
         
     except Exception as e:
-        print(f"✗ Fehler beim Zusammensetzen des Bildes: {e}")
+        print(f"[FEHLER] Fehler beim Zusammensetzen des Bildes: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -426,10 +433,10 @@ def reconnect_serial():
     try:
         lora = setup_lora_serial()
         if lora:
-            print("✓ Serielle Verbindung wiederhergestellt")
+            print("[OK] Serielle Verbindung wiederhergestellt")
             return lora
     except Exception as e:
-        print(f"✗ Reconnect fehlgeschlagen: {e}")
+        print(f"[FEHLER] Reconnect fehlgeschlagen: {e}")
     return None
 
 
@@ -442,7 +449,7 @@ def main():
     
     lora_serial = setup_lora_serial()
     if not lora_serial:
-        print("✗ Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
+        print("[FEHLER] Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
         return
     
     print("Warte auf Bildpakete und Sensordaten...\n")
@@ -473,12 +480,12 @@ def main():
                                 missing = check_missing_packets()
                                 if not missing:
                                     # Alle Pakete sind jetzt da - sende ACK und erstelle Bild
-                                    print(f"\n✓ Alle Pakete nach Retransmission empfangen!")
+                                    print(f"\n[OK] Alle Pakete nach Retransmission empfangen!")
                                     waiting_for_retransmission = False
                                     send_ack_message(lora_serial)
                                     if create_image_from_chunks():
                                         print(f"\n{'='*50}")
-                                        print("✓ Bild erfolgreich empfangen und gespeichert!")
+                                        print("[OK] Bild erfolgreich empfangen und gespeichert!")
                                         print(f"{'='*50}\n")
                                         reset_reception_state()
                                         print("Warte auf nächstes Bild...\n")
@@ -487,7 +494,7 @@ def main():
                         elif received_packet.startswith(b"ENDE_BILDUPLOAD"):
                             if process_end_message(lora_serial):
                                 print(f"\n{'='*50}")
-                                print("✓ Bild erfolgreich empfangen und gespeichert!")
+                                print("[OK] Bild erfolgreich empfangen und gespeichert!")
                                 print(f"{'='*50}\n")
                                 # Zurücksetzen für nächstes Bild
                                 reset_reception_state()
@@ -500,7 +507,7 @@ def main():
                 # HINWEIS: Mit dem neuen Protokoll sollte immer eine ENDE-Nachricht kommen
                 # Diese Funktion bleibt als Fallback, sendet aber keine ACK/MISSING
                 if check_all_packets_received():
-                    print(f"\n✓ Alle Pakete empfangen ({len(received_chunks)}/{total_chunks})")
+                    print(f"\n[OK] Alle Pakete empfangen ({len(received_chunks)}/{total_chunks})")
                     print("  Warte auf ENDE-Nachricht für Protokoll...")
                     # Nicht automatisch speichern, sondern auf ENDE-Nachricht warten
                 
@@ -509,16 +516,16 @@ def main():
                     if start_time is not None:
                         # Wenn wir Pakete haben, versuche trotzdem zu speichern
                         if len(received_chunks) > 0 and total_chunks is not None:
-                            print(f"\n⚠ Timeout erreicht, aber {len(received_chunks)}/{total_chunks} Pakete empfangen")
+                            print(f"\n[WARNUNG] Timeout erreicht, aber {len(received_chunks)}/{total_chunks} Pakete empfangen")
                             print("  Versuche Bild trotzdem zu speichern...")
                             if process_end_message(lora_serial):
                                 print(f"\n{'='*50}")
-                                print("✓ Bild gespeichert (möglicherweise unvollständig)")
+                                print("[OK] Bild gespeichert (möglicherweise unvollständig)")
                                 print(f"{'='*50}\n")
                             else:
-                                print("\n✗ Konnte Bild nicht speichern.\n")
+                                print("\n[FEHLER] Konnte Bild nicht speichern.\n")
                         else:
-                            print(f"\n✗ Timeout: Keine vollständige Übertragung innerhalb von {TIMEOUT_SECONDS} Sekunden")
+                            print(f"\n[FEHLER] Timeout: Keine vollständige Übertragung innerhalb von {TIMEOUT_SECONDS} Sekunden")
                             print(f"  Empfangene Pakete: {len(received_chunks)}/{total_chunks if total_chunks else '?'}")
                         reset_reception_state()
                         print("Warte auf neues Bild...\n")
@@ -530,7 +537,7 @@ def main():
                 break
             except (OSError, serial.SerialException) as e:
                 # I/O-Fehler (z.B. Errno 5) bei getrennter/instabiler Hardware
-                print(f"\n⚠ I/O-Fehler bei serieller Schnittstelle: {e}")
+                print(f"\n[WARNUNG] I/O-Fehler bei serieller Schnittstelle: {e}")
                 print("  Versuche Verbindung wiederherzustellen...")
                 try:
                     lora_serial.close()
@@ -544,11 +551,11 @@ def main():
                         break
                     time.sleep(3)
                 if not lora_serial:
-                    print("✗ Konnte Verbindung nicht wiederherstellen. Beende Programm.")
+                    print("[FEHLER] Konnte Verbindung nicht wiederherstellen. Beende Programm.")
                     break
                 time.sleep(0.5)
             except Exception as e:
-                print(f"✗ Ein Fehler ist aufgetreten: {e}")
+                print(f"[FEHLER] Ein Fehler ist aufgetreten: {e}")
                 import traceback
                 traceback.print_exc()
                 time.sleep(1)  # Kurze Pause vor erneutem Versuch
@@ -556,7 +563,7 @@ def main():
     finally:
         if lora_serial:
             lora_serial.close()
-        print("✓ Serielle Verbindung geschlossen")
+        print("[OK] Serielle Verbindung geschlossen")
 
 
 if __name__ == "__main__":

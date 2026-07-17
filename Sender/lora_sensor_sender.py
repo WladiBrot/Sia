@@ -28,6 +28,13 @@ import adafruit_dht
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # ============================================================
 #  Konfiguration
 # ============================================================
@@ -42,6 +49,9 @@ DHT22_PIN = board.D7  # GPIO 4, physischer Pin 7
 
 # --- KY-053 / Eltako WS ---
 ADS_I2C_ADDRESS = 0x48
+# Kanal A0 des ADS1115. Neuere Versionen der Adafruit-Bibliothek haben die
+# Konstante ADS.P0 entfernt – der nackte Index 0 funktioniert in allen Versionen.
+ADS_KANAL_A0 = 0
 # Schwellen für Hysterese-Flankenerkennung (Rohwerte ADS1115, 0..32767)
 # Bei Gain=1 entspricht 32767 ≈ 4,096 V.
 SCHWELLE_HIGH = 20000   # Signal gilt ab hier als HIGH (~2,5 V)
@@ -61,10 +71,10 @@ def dht22_setup():
     global _dht_device
     try:
         _dht_device = adafruit_dht.DHT22(DHT22_PIN, use_pulseio=False)
-        print("✓ DHT22 bereit (GPIO 4)")
+        print("[OK] DHT22 bereit (GPIO 4)")
         return True
     except Exception as e:
-        print(f"⚠ DHT22 konnte nicht initialisiert werden: {e}")
+        print(f"[WARNUNG] DHT22 konnte nicht initialisiert werden: {e}")
         _dht_device = None
         return False
 
@@ -100,11 +110,11 @@ def anemometer_setup():
     ads = ADS.ADS1115(i2c, address=ADS_I2C_ADDRESS)
     ads.gain = 1        # ±4,096 V – passt zu 3,3 V-Pulsen
     ads.data_rate = 860
-    _adc_channel = AnalogIn(ads, ADS.P0)
+    _adc_channel = AnalogIn(ads, ADS_KANAL_A0)
 
     _wind_state_high = True
     _wind_last_edge_ms = _now_ms()
-    print("✓ KY-053 ADC bereit (A0, Gain=1, 860 SPS)")
+    print("[OK] KY-053 ADC bereit (A0, Gain=1, 860 SPS)")
 
 
 def anemometer_tick():
@@ -150,14 +160,14 @@ def setup_lora_serial():
             timeout=1,
             write_timeout=5,
         )
-        print(f"✓ LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
+        print(f"[OK] LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
         time.sleep(0.5)
         return lora_serial
     except serial.SerialException as e:
-        print(f"✗ FEHLER: Kann serielle Schnittstelle nicht öffnen: {e}")
+        print(f"[FEHLER] Kann serielle Schnittstelle nicht öffnen: {e}")
         return None
     except Exception as e:
-        print(f"✗ Unerwarteter Fehler: {e}")
+        print(f"[FEHLER] Unerwarteter Fehler: {e}")
         return None
 
 
@@ -170,10 +180,10 @@ def send_sensor_data(lora_serial, data):
         packet = f"SENSOR_DATA:{json_str}\n".encode('utf-8')
         lora_serial.write(packet)
         lora_serial.flush()
-        print(f"✓ Gesendet: {json_str}")
+        print(f"[OK] Gesendet: {json_str}")
         return True
     except Exception as e:
-        print(f"✗ Fehler beim Senden: {e}")
+        print(f"[FEHLER] Fehler beim Senden: {e}")
         return False
 
 
@@ -191,7 +201,7 @@ def main():
 
     lora_serial = setup_lora_serial()
     if not lora_serial:
-        print("✗ Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
+        print("[FEHLER] Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
         return
 
     last_send_time = 0.0
@@ -243,7 +253,7 @@ def main():
                 _dht_device.exit()
             except Exception:
                 pass
-        print("✓ Verbindungen geschlossen")
+        print("[OK] Verbindungen geschlossen")
 
 
 if __name__ == "__main__":

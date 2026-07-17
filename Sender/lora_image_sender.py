@@ -11,6 +11,12 @@ import io
 import os
 import base64
 
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # --- LoRa-Konstanten ---
 LORA_PORT = '/dev/ttyS0'
 LORA_BAUDRATE = 9600
@@ -37,7 +43,7 @@ def _import_picamera2():
 
         return Picamera2
     except Exception as e:
-        print("\n✗ Kamera-Module fehlen oder lassen sich nicht laden.")
+        print("\n[FEHLER] Kamera-Module fehlen oder lassen sich nicht laden.")
         print(f"  Technische Meldung: {e!r}\n")
         print("Auf Raspberry Pi OS gehören Picamera2 und libcamera zu den Systempaketen.")
         print("So richtest du es ein:\n")
@@ -67,15 +73,15 @@ def setup_lora_serial():
             timeout=1,
             write_timeout=5
         )
-        print(f"✓ LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
+        print(f"[OK] LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
         time.sleep(0.5)  # Kurze Initialisierungszeit
         return lora_serial
     except serial.SerialException as e:
-        print(f"✗ FEHLER: Kann serielle Schnittstelle nicht öffnen: {e}")
+        print(f"[FEHLER] Kann serielle Schnittstelle nicht öffnen: {e}")
         print(f"  Stelle sicher, dass {LORA_PORT} existiert und berechtigt ist.")
         return None
     except Exception as e:
-        print(f"✗ Unerwarteter Fehler beim Öffnen der seriellen Schnittstelle: {e}")
+        print(f"[FEHLER] Unerwarteter Fehler beim Öffnen der seriellen Schnittstelle: {e}")
         return None
 
 
@@ -101,10 +107,10 @@ def capture_image(picam2, output_filename):
         picam2.capture_file(output_filename)
         picam2.stop()
         
-        print(f"✓ Foto aufgenommen: {output_filename}")
+        print(f"[OK] Foto aufgenommen: {output_filename}")
         return True
     except Exception as e:
-        print(f"✗ Fehler beim Aufnehmen des Fotos: {e}")
+        print(f"[FEHLER] Fehler beim Aufnehmen des Fotos: {e}")
         return False
 
 
@@ -132,14 +138,14 @@ def compress_image(input_filename):
         img_resized.save(byte_arr, format='JPEG', quality=JPEG_QUALITY, optimize=True)
         compressed_data = byte_arr.getvalue()
         
-        print(f"✓ Bild komprimiert: {len(compressed_data)} Bytes (Original: {os.path.getsize(input_filename)} Bytes)")
+        print(f"[OK] Bild komprimiert: {len(compressed_data)} Bytes (Original: {os.path.getsize(input_filename)} Bytes)")
         return compressed_data
         
     except FileNotFoundError:
-        print(f"✗ Datei nicht gefunden: {input_filename}")
+        print(f"[FEHLER] Datei nicht gefunden: {input_filename}")
         return None
     except Exception as e:
-        print(f"✗ Fehler bei der Bildverarbeitung: {e}")
+        print(f"[FEHLER] Fehler bei der Bildverarbeitung: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -158,7 +164,7 @@ def send_chunk(lora_serial, chunk_data, index, total_chunks):
     lora_serial.write(packet)
     lora_serial.flush()
     
-    print(f"✓ Gesendet: Paket {index+1}/{total_chunks} ({len(packet)} Bytes, Daten roh: {len(chunk_data)} Bytes, b64: {len(chunk_b64)} Bytes)")
+    print(f"[OK] Gesendet: Paket {index+1}/{total_chunks} ({len(packet)} Bytes, Daten roh: {len(chunk_data)} Bytes, b64: {len(chunk_b64)} Bytes)")
     
     # WICHTIG: LoRa benötigt eine Wartezeit zwischen den Paketen (Duty Cycle)
     if index < total_chunks - 1:  # Keine Wartezeit nach dem letzten Paket
@@ -183,7 +189,7 @@ def wait_for_response(lora_serial):
                         missing_indices = [int(idx) for idx in missing_str.split(b",") if idx]
                         return ("MISSING", missing_indices)
                     except (IndexError, ValueError) as e:
-                        print(f"✗ Fehler beim Parsen der MISSING-Nachricht: {e}")
+                        print(f"[FEHLER] Fehler beim Parsen der MISSING-Nachricht: {e}")
                         return None
         time.sleep(0.1)
     
@@ -200,7 +206,7 @@ def send_data_via_lora(lora_serial, data):
         data: Byte-Array mit den Bilddaten
     """
     if not lora_serial or not data:
-        print("✗ Senden fehlgeschlagen: Serielle Schnittstelle nicht bereit oder keine Daten.")
+        print("[FEHLER] Senden fehlgeschlagen: Serielle Schnittstelle nicht bereit oder keine Daten.")
         return False
 
     total_chunks = (len(data) + MAX_PAYLOAD_SIZE - 1) // MAX_PAYLOAD_SIZE
@@ -225,7 +231,7 @@ def send_data_via_lora(lora_serial, data):
         start_message = f"START:{len(data)}:{total_chunks}:".encode('utf-8') + b"\n"
         lora_serial.write(start_message)
         lora_serial.flush()
-        print(f"✓ START-Nachricht gesendet: {start_message.decode('utf-8').strip()}")
+        print(f"[OK] START-Nachricht gesendet: {start_message.decode('utf-8').strip()}")
         time.sleep(START_DELAY)
 
         # Alle Datenpakete senden (erste Runde)
@@ -240,7 +246,7 @@ def send_data_via_lora(lora_serial, data):
         end_message = b"ENDE_BILDUPLOAD\n"
         lora_serial.write(end_message)
         lora_serial.flush()
-        print(f"✓ ENDE-Nachricht gesendet")
+        print(f"[OK] ENDE-Nachricht gesendet")
         
         # Warte auf Antwort vom Receiver
         retransmission_round = 0
@@ -250,7 +256,7 @@ def send_data_via_lora(lora_serial, data):
             
             if response == "ACK":
                 print(f"\n{'='*50}")
-                print("✓ Übertragung erfolgreich abgeschlossen! Alle Pakete wurden empfangen.")
+                print("[OK] Übertragung erfolgreich abgeschlossen! Alle Pakete wurden empfangen.")
                 print(f"{'='*50}\n")
                 return True
             elif isinstance(response, tuple) and response[0] == "MISSING":
@@ -270,9 +276,9 @@ def send_data_via_lora(lora_serial, data):
                 # Sende erneut ENDE-Nachricht
                 lora_serial.write(end_message)
                 lora_serial.flush()
-                print(f"✓ ENDE-Nachricht erneut gesendet")
+                print(f"[OK] ENDE-Nachricht erneut gesendet")
             else:
-                print(f"✗ Timeout oder ungültige Antwort vom Receiver")
+                print(f"[FEHLER] Timeout oder ungültige Antwort vom Receiver")
                 print(f"  Versuche erneut...")
                 retransmission_round += 1
                 if retransmission_round < MAX_RETRANSMISSION_ROUNDS:
@@ -281,14 +287,14 @@ def send_data_via_lora(lora_serial, data):
                     lora_serial.flush()
                     time.sleep(1)
         
-        print(f"\n✗ Maximale Anzahl von Retransmission-Runden erreicht ({MAX_RETRANSMISSION_ROUNDS})")
+        print(f"\n[FEHLER] Maximale Anzahl von Retransmission-Runden erreicht ({MAX_RETRANSMISSION_ROUNDS})")
         return False
 
     except serial.SerialTimeoutException:
-        print("✗ Timeout beim Senden über serielle Schnittstelle")
+        print("[FEHLER] Timeout beim Senden über serielle Schnittstelle")
         return False
     except Exception as e:
-        print(f"✗ Fehler beim Senden: {e}")
+        print(f"[FEHLER] Fehler beim Senden: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -308,23 +314,23 @@ def main():
     temp_filename = "/tmp/lora_temp_foto.jpg"
     lora_serial = setup_lora_serial()
     if not lora_serial:
-        print("✗ Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
+        print("[FEHLER] Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
         return
 
     try:
         while True:
             # Foto aufnehmen
             if not capture_image(picam2, temp_filename):
-                print("✗ Foto konnte nicht aufgenommen werden. Nächster Versuch nach Intervall.")
+                print("[FEHLER] Foto konnte nicht aufgenommen werden. Nächster Versuch nach Intervall.")
             else:
                 # Bild komprimieren
                 image_bytes = compress_image(temp_filename)
                 if image_bytes is not None:
                     success = send_data_via_lora(lora_serial, image_bytes)
                     if success:
-                        print("✓ Bild erfolgreich übertragen!")
+                        print("[OK] Bild erfolgreich übertragen!")
                     else:
-                        print("✗ Fehler beim Übertragen des Bildes.")
+                        print("[FEHLER] Fehler beim Übertragen des Bildes.")
                 if os.path.exists(temp_filename):
                     os.remove(temp_filename)
 
@@ -336,7 +342,7 @@ def main():
         lora_serial.close()
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
-        print("✓ Serielle Verbindung geschlossen")
+        print("[OK] Serielle Verbindung geschlossen")
 
 
 if __name__ == "__main__":
@@ -345,7 +351,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n\nProgramm durch Benutzer beendet (Strg+C).")
     except Exception as e:
-        print(f"\n✗ Unerwarteter Fehler: {e}")
+        print(f"\n[FEHLER] Unerwarteter Fehler: {e}")
         import traceback
         traceback.print_exc()
 

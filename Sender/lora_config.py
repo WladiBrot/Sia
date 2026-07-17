@@ -8,6 +8,13 @@ WICHTIG: Beide Raspberry Pis müssen mit den GLEICHEN Parametern konfiguriert we
 import serial
 import time
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # --- Serielle Schnittstelle ---
 LORA_PORT = '/dev/ttyS0'
 LORA_BAUDRATE = 9600
@@ -47,7 +54,7 @@ def send_at_command(ser, command, expected_response=None, timeout=2):
         cmd = (command + '\r\n').encode('utf-8')
         ser.write(cmd)
         ser.flush()
-        print(f"→ Gesendet: {command}")
+        print(f"-> Gesendet: {command}")
         
         # Warte auf Antwort
         time.sleep(0.1)
@@ -62,15 +69,15 @@ def send_at_command(ser, command, expected_response=None, timeout=2):
             time.sleep(0.01)
         
         response_str = response.decode('utf-8', errors='ignore').strip()
-        print(f"← Empfangen: {response_str}")
+        print(f"<- Empfangen: {response_str}")
         
         if expected_response and expected_response not in response_str:
-            print(f"⚠ Warnung: Erwartete '{expected_response}', bekam '{response_str}'")
+            print(f"[WARNUNG] Warnung: Erwartete '{expected_response}', bekam '{response_str}'")
         
         return response_str
         
     except Exception as e:
-        print(f"✗ Fehler beim Senden von '{command}': {e}")
+        print(f"[FEHLER] Fehler beim Senden von '{command}': {e}")
         return None
 
 
@@ -100,16 +107,16 @@ def configure_lora_module():
         )
         time.sleep(1)  # Warte auf Initialisierung
         
-        print(f"✓ Serielle Schnittstelle {LORA_PORT} geöffnet\n")
+        print(f"[OK] Serielle Schnittstelle {LORA_PORT} geöffnet\n")
         
         # Test: AT-Befehl senden (falls unterstützt)
         print("Teste Verbindung zum Modul...")
         response = send_at_command(ser, "AT", "OK")
         
         if response and "OK" in response:
-            print("✓ Modul antwortet\n")
+            print("[OK] Modul antwortet\n")
         else:
-            print("⚠ Modul antwortet nicht auf AT - möglicherweise nicht AT-kompatibel")
+            print("[WARNUNG] Modul antwortet nicht auf AT - möglicherweise nicht AT-kompatibel")
             print("  Viele SX1268 HATs verwenden direkte Register-Konfiguration\n")
         
         # Konfiguration anzeigen
@@ -183,11 +190,11 @@ def configure_lora_module():
         return True
         
     except serial.SerialException as e:
-        print(f"✗ Fehler: Kann serielle Schnittstelle nicht öffnen: {e}")
+        print(f"[FEHLER] Fehler: Kann serielle Schnittstelle nicht öffnen: {e}")
         print(f"  Prüfe, ob {LORA_PORT} existiert und berechtigt ist.")
         return False
     except Exception as e:
-        print(f"✗ Unerwarteter Fehler: {e}")
+        print(f"[FEHLER] Unerwarteter Fehler: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -222,9 +229,9 @@ def test_communication():
                 message = f"TEST_{i+1}"
                 ser.write(message.encode('utf-8'))
                 ser.flush()
-                print(f"✓ Gesendet: {message}")
+                print(f"[OK] Gesendet: {message}")
                 time.sleep(2)
-            print("\n✓ Test abgeschlossen")
+            print("\n[OK] Test abgeschlossen")
             
         elif mode == "2":
             print("\nWarte auf Testpakete (10 Sekunden)...")
@@ -232,14 +239,14 @@ def test_communication():
             while (time.time() - start_time) < 10:
                 if ser.in_waiting > 0:
                     data = ser.read(ser.in_waiting)
-                    print(f"✓ Empfangen: {data.decode('utf-8', errors='ignore')}")
+                    print(f"[OK] Empfangen: {data.decode('utf-8', errors='ignore')}")
                 time.sleep(0.1)
-            print("\n✓ Test abgeschlossen")
+            print("\n[OK] Test abgeschlossen")
         
         ser.close()
         
     except Exception as e:
-        print(f"✗ Fehler: {e}")
+        print(f"[FEHLER] Fehler: {e}")
 
 
 if __name__ == "__main__":
