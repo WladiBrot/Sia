@@ -28,6 +28,13 @@ import adafruit_dht
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # ============================================================
 #  Konfiguration
 # ============================================================

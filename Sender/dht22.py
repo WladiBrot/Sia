@@ -2,6 +2,13 @@ import time
 import board
 import adafruit_dht
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # DHT22 an GPIO4 (physischer Pin 7)
 dhtDevice = adafruit_dht.DHT22(board.D7, use_pulseio=False)
 

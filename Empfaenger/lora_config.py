@@ -8,6 +8,13 @@ WICHTIG: Beide Raspberry Pis müssen mit den GLEICHEN Parametern konfiguriert we
 import serial
 import time
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 # --- Serielle Schnittstelle ---
 LORA_PORT = '/dev/ttyS0'
 LORA_BAUDRATE = 9600

@@ -22,6 +22,13 @@ from datetime import datetime
 
 from flask import Flask, jsonify, render_template, send_from_directory
 
+import sys
+# Terminals mit latin-1-Encoding (z. B. auf dem Pi) koennen manche Unicode-
+# Zeichen nicht darstellen. Statt abzustuerzen werden sie durch '?' ersetzt.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LATEST_SENSOR_JSON = os.path.join(BASE_DIR, "latest_sensor.json")
 LATEST_IMAGE_FILE = os.path.join(BASE_DIR, "latest_image.jpg")
