@@ -64,10 +64,10 @@ def dht22_setup():
     global _dht_device
     try:
         _dht_device = adafruit_dht.DHT22(DHT22_PIN, use_pulseio=False)
-        print("✓ DHT22 bereit (GPIO 4)")
+        print("[OK] DHT22 bereit (GPIO 4)")
         return True
     except Exception as e:
-        print(f"⚠ DHT22 konnte nicht initialisiert werden: {e}")
+        print(f"[WARNUNG] DHT22 konnte nicht initialisiert werden: {e}")
         _dht_device = None
         return False
 
@@ -107,7 +107,7 @@ def anemometer_setup():
 
     _wind_state_high = True
     _wind_last_edge_ms = _now_ms()
-    print("✓ KY-053 ADC bereit (A0, Gain=1, 860 SPS)")
+    print("[OK] KY-053 ADC bereit (A0, Gain=1, 860 SPS)")
 
 
 def anemometer_tick():
@@ -153,14 +153,14 @@ def setup_lora_serial():
             timeout=1,
             write_timeout=5,
         )
-        print(f"✓ LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
+        print(f"[OK] LoRa-Schnittstelle auf {LORA_PORT} geöffnet (Baudrate: {LORA_BAUDRATE})")
         time.sleep(0.5)
         return lora_serial
     except serial.SerialException as e:
-        print(f"✗ FEHLER: Kann serielle Schnittstelle nicht öffnen: {e}")
+        print(f"[FEHLER] Kann serielle Schnittstelle nicht öffnen: {e}")
         return None
     except Exception as e:
-        print(f"✗ Unerwarteter Fehler: {e}")
+        print(f"[FEHLER] Unerwarteter Fehler: {e}")
         return None
 
 
@@ -173,10 +173,10 @@ def send_sensor_data(lora_serial, data):
         packet = f"SENSOR_DATA:{json_str}\n".encode('utf-8')
         lora_serial.write(packet)
         lora_serial.flush()
-        print(f"✓ Gesendet: {json_str}")
+        print(f"[OK] Gesendet: {json_str}")
         return True
     except Exception as e:
-        print(f"✗ Fehler beim Senden: {e}")
+        print(f"[FEHLER] Fehler beim Senden: {e}")
         return False
 
 
@@ -194,7 +194,7 @@ def main():
 
     lora_serial = setup_lora_serial()
     if not lora_serial:
-        print("✗ Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
+        print("[FEHLER] Programm beendet: LoRa-Schnittstelle konnte nicht geöffnet werden.")
         return
 
     last_send_time = 0.0
@@ -246,7 +246,7 @@ def main():
                 _dht_device.exit()
             except Exception:
                 pass
-        print("✓ Verbindungen geschlossen")
+        print("[OK] Verbindungen geschlossen")
 
 
 if __name__ == "__main__":
