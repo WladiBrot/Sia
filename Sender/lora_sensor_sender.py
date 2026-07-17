@@ -42,6 +42,9 @@ DHT22_PIN = board.D7  # GPIO 4, physischer Pin 7
 
 # --- KY-053 / Eltako WS ---
 ADS_I2C_ADDRESS = 0x48
+# Kanal A0 des ADS1115. Neuere Versionen der Adafruit-Bibliothek haben die
+# Konstante ADS.P0 entfernt – der nackte Index 0 funktioniert in allen Versionen.
+ADS_KANAL_A0 = 0
 # Schwellen für Hysterese-Flankenerkennung (Rohwerte ADS1115, 0..32767)
 # Bei Gain=1 entspricht 32767 ≈ 4,096 V.
 SCHWELLE_HIGH = 20000   # Signal gilt ab hier als HIGH (~2,5 V)
@@ -100,7 +103,7 @@ def anemometer_setup():
     ads = ADS.ADS1115(i2c, address=ADS_I2C_ADDRESS)
     ads.gain = 1        # ±4,096 V – passt zu 3,3 V-Pulsen
     ads.data_rate = 860
-    _adc_channel = AnalogIn(ads, ADS.P0)
+    _adc_channel = AnalogIn(ads, ADS_KANAL_A0)
 
     _wind_state_high = True
     _wind_last_edge_ms = _now_ms()
